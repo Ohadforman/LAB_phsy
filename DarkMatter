@@ -1,0 +1,183 @@
+path = r'G:\My Drive\Darkmatter\Measurements'
+import pandas as pd
+import os
+import numpy as np
+import matplotlib
+import matplotlib.pyplot as plt
+import scipy as sp
+from scipy import signal
+dir_list = os.listdir()
+os.chdir(path)
+
+
+def AVG(lst,n):
+    lst=list(lst)
+    new_lst=[]
+    for i in range(n,len(lst)-n):
+        new_lst.append(np.average(lst[i-n:i+n]))
+    return np.array(new_lst)
+    
+    
+def read_data_from_one(n):
+    df = pd.read_csv('{}_{}.csv'.format(n,0))
+    column_VELO = np.array(df.iloc[:, 0])
+    column_TEMP = np.array(df.iloc[:, 1])
+    column_TEMP =np.where((column_TEMP<25),0,column_TEMP)
+    #column_VELO =np.where((column_TEMP<25),0,column_VELO)
+    return column_VELO,column_TEMP
+
+
+def read_data_from_four(n):
+    df = pd.read_csv('-{}_{}.csv'.format(n,0)) 
+    column_VELO = np.array(df.iloc[:, 0])
+    column_TEMP = np.array(df.iloc[:, 1])
+    column_TEMP =np.where((column_TEMP<25),0,column_TEMP)
+    return column_VELO,column_TEMP
+
+
+
+
+
+def find_pi_RIGHT(df):
+    temp = df[1]
+    Velo = df[0]
+    picks=sp.signal.find_peaks(temp, height=None,
+                        threshold=None,
+                        distance=None,
+                        prominence=None,
+                        width=None,
+                        wlen=None,
+                        rel_height=0.5,
+                        plateau_size=None)
+    return Velo[picks[0][-1]]
+      
+    
+def find_pi_Left(df):
+    temp = df[1]
+    Velo = df[0]
+    picks=sp.signal.find_peaks(temp, height=None,
+                        threshold=None,
+                        distance=None,
+                        prominence=None,
+                        width=None,
+                        wlen=None,
+                        rel_height=0.5,
+                        plateau_size=None)
+
+    return Velo[picks[0][0]]
+    
+    
+    
+    
+radiusplus = []
+velocityplus = []
+radiusmin = []
+velocitymin = []
+
+results_tuples_plus = []
+results_tuples_minus = []
+for i in range(1,91):
+    df=(read_data_from_one(i))
+    velo_max = find_pi_RIGHT(df)
+    R = 8*np.sin(np.radians(i))
+    veloc = velo_max + 220 * np.sin(np.radians(i))
+    velocityplus.append(veloc)
+    radiusplus.append(R)
+    results_tuples_plus.append((R,veloc))
+for i in range(-90,0):
+    df=(read_data_from_one(i))
+    velo_max = find_pi_Left(df)
+    R = 8*np.sin(np.radians(i))
+    veloc = velo_max + 220 * np.sin(np.radians(i))
+    velocitymin.append(veloc)
+    radiusmin.append(R)
+    results_tuples_minus.append((-R,-veloc))
+    
+    
+
+    
+radiusmin=np.array(radiusmin)
+radiusplus=np.array(radiusplus)
+velocitymin=np.array(velocitymin)
+velocityplus=np.array(velocityplus)
+
+
+radiusmin_2 = -1*radiusmin
+velocitymin_2 = -1*velocitymin
+velocitymin_2 = np.flip(velocitymin_2)
+
+
+for i in range(len(radiusplus)):
+    #print(velocitymin_2[i])
+    #print(velocityplus[i])
+    #print((velocitymin_2[-i]+velocityplus[-i])/2)
+    velocity_mean = np.sum([velocitymin_2,velocityplus],axis=0)/2
+
+
+#velocity_mean = np.sum(velocitymin_2 + velocityplus)/2
+
+Radius = np.concatenate((np.array(radiusmin),np.array(radiusplus)))
+velocity = np.concatenate((np.array(velocitymin),np.array(velocityplus)))
+#print (velocity)
+
+
+
+
+fig, ax1 = plt.subplots(figsize=(11,6))
+color = 'tab:red'
+plt.style.use('ggplot')
+
+
+# ax1.set(title=r'$V(R)$')
+# ax1.plot(Radius,velocity,color='r',label=r'$V(R)$')
+# ax1.plot(radiusplus,velocitymin_2,color='b',label=r'$-V(R)$')
+# ax1.plot(radiusplus,velocity_mean,color='g',label=r'$AVG$')
+# ax1.set_ylabel(r'$V[\frac{Km}{sec}]$',fontsize='16')
+# ax1.set_xlabel(r'$R[kpc]$',fontsize='16')
+# plt.plot([2.1, 2.1], [0, 250], '--', lw=2, label=r'$Areas\quadCut$')
+# ax1.legend(loc=0)
+
+ax1.set(title=r'$Average$')
+ax1.plot(AVG(Radius,10),AVG(velocity,10),color='r',label=r'$V(R)$')
+ax1.set_ylabel(r'$V[\frac{Km}{sec}]$',fontsize='16')
+ax1.set_xlabel(r'$R[kpc]$',fontsize='16')
+ax1.legend(loc=(0.01,0.89))
+
+
+ax1.grid(True)
+
+#plt.savefig('G:\Shared drives\LAB\מעבדה ב2\ניסויים\חומר אפל\Avragelook.png')
+
+
+
+
+
+index_to_cut=None
+for i in range(len(radiusplus)):
+    if radiusplus[i]<2.1 and radiusplus[i+1]>2.1:
+        index_to_cut = i
+        
+velocityplus_SR,velocitymin_2_SR,velocity_mean_SR = velocityplus[:index_to_cut+1],velocitymin_2[:index_to_cut+1],velocity_mean[:index_to_cut+1] 
+velocityplus_BR,velocitymin_2_BR,velocity_mean_BR = velocityplus[index_to_cut:],velocitymin_2[index_to_cut:],velocity_mean[index_to_cut:] 
+radiusplus_SR=radiusplus[:index_to_cut+1]
+radiusplus_BR=radiusplus[index_to_cut:]
+
+
+
+
+
+fig, axs = plt.subplots(1, 2, figsize=(15, 6), sharey=True)
+plt.style.use('ggplot')
+axs[0].plot(radiusplus_SR, velocity_mean_SR,color='g')
+axs[1].plot(radiusplus_BR, velocity_mean_BR,color='g')
+axs[0].set_title(r'$Small \quad radius \quad data$')
+axs[1].set_title(r'$Big \quad radius \quad data$')
+#axs[0].title('Small R linear')
+fig.suptitle('Cuting to areas')
+axs[0].set_ylabel(r'$V[\frac{Km}{sec}]$',fontsize='16')
+axs[0].set_xlabel(r'$R[kpc]$',fontsize='16')
+
+axs[1].set_ylabel(r'$V[\frac{Km}{sec}]$',fontsize='16')
+axs[1].set_xlabel(r'$R[kpc]$',fontsize='16')
+plt.savefig('G:\Shared drives\LAB\מעבדה ב2\ניסויים\חומר אפל\CUTdata.png')
+
